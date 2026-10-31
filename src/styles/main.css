@@ -1,0 +1,683 @@
+/* ============ 基础 ============ */
+:root {
+  --ink-black: #05070a;
+  --night-blue: #0b1016;
+  --ivory: #e8dcc3;
+  --gold: #c9a86a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink-black);
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { -webkit-user-drag: none; user-select: none; }
+
+#app { position: fixed; inset: 0; }
+
+.scene { position: absolute; inset: 0; transition: opacity 0.8s ease; }
+.scene.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* ============ 船页水墨底图 ============ */
+/* 背景为无焦点主体的波纹肌理（1920×1080），cover 居中裁切在任何视口下比例自然；
+   底色与图片主色一致，加载瞬间无白闪。src 由 main.ts 注入。 */
+.home-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-color: #0d0f0e;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+}
+/* 边缘轻压暗，聚焦中心并统一船页明暗氛围 */
+.home-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(120% 95% at 50% 38%, transparent 42%, rgba(3, 5, 7, 0.6) 100%);
+}
+
+/* ============ 博物馆页专用背景（船页不用此层） ============ */
+/* 米色云纹纸纹（1920×1080），cover 居中裁切；置于 #scene-museum 内随场景整体显隐，
+   转场时随博物馆一起淡出、露出底层 .home-bg（船页背景），衔接自然。
+   层级：低于 #museum-trigger(z2) 与 .museum-hint(z4)；src 由 main.ts 注入。 */
+.museum-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background-color: #d8cfba;
+  background-size: cover; background-position: center; background-repeat: no-repeat;
+  /* 声明式基线：转场时 GSAP 从这里插值压暗（若不声明，GSAP 解析不到起始值
+     会从 0 开始补间 → 背景瞬间变全黑，比不压暗还跳） */
+  filter: brightness(1);
+}
+
+/* ============ 加载层 ============ */
+#preloader {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  background: var(--ink-black);
+  transition: opacity 0.9s ease;
+}
+#preloader.is-done { opacity: 0; pointer-events: none; }
+.preloader-text { color: rgba(232, 220, 195, 0.75); font-size: 14px; letter-spacing: 0.5em; text-indent: 0.5em; }
+.preloader-bar { width: 168px; height: 2px; background: rgba(232, 220, 195, 0.14); overflow: hidden; }
+#preloader-fill { display: block; width: 0; height: 100%; background: var(--gold); transition: width 0.25s ease; }
+
+/* ============ 天气层：云 ============ */
+.weather-clouds { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.clouds { z-index: 0; }
+/* 云层置于海浪4（z2）之上：z-index 只接受整数，2.5 这类小数会被整条声明丢弃。
+   整数 2 与 3 之间没有可选值，故云取 3 —— 与海浪3 同级，
+   靠 DOM 顺序（.sea-clouds 在 #sea 之前）落在海浪3 之后，
+   结果：云 > 海浪4(z2)，云 < 海浪3(z3) / 船(z4) / 海浪2(z5) / 海浪1(z6)。
+   若要让云也盖过海浪3，把此值改为 4（与船同级，仍靠 DOM 顺序落在船之后）。 */
+.sea-clouds { z-index: 4; }
+
+.cloud-drift {
+  position: absolute; left: 0;
+  will-change: transform;
+  animation-name: cloud-pass; animation-timing-function: linear; animation-iteration-count: infinite;
+  animation-duration: var(--dur); animation-delay: var(--delay);
+}
+.cloud-bob {
+  width: 100%;
+  animation: cloud-bob var(--bob-dur) ease-in-out infinite alternate;
+}
+.cloud-bob img { display: block; width: 100%; height: auto; mix-blend-mode: screen; filter: brightness(1.08); }
+/* 漂入：从右屏外 → 左屏外；重置点完全在屏幕外，循环无跳变 */
+@keyframes cloud-pass {
+  from { transform: translateX(108vw); }
+  to   { transform: translateX(-110%); }
+}
+@keyframes cloud-bob {
+  from { transform: translateY(0); }
+  to   { transform: translateY(var(--bob-y)); }
+}
+
+/* ============ 天气层：雨 ============ */
+.weather-rain { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.rain { z-index: 3; }
+.sea-rain { z-index: 7; }
+
+.rain-layer { position: absolute; inset: -2% 0; }
+.rain-col {
+  position: absolute; left: calc(-2% * var(--scale)); top: 0;
+  width: calc(104% * var(--scale)); height: 200%;
+  will-change: transform;
+  animation: rain-fall var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+.rain-col img {
+  display: block; width: 100%; height: 50%;
+  object-fit: cover;
+  mix-blend-mode: screen;
+  opacity: var(--op);
+}
+/* 两张同图上下相接；履带自上向下平移恰好一张高度时第二张补位
+   → 雨线持续下落、循环无跳变（上轮方向反了导致"向上飞"，已反转） */
+@keyframes rain-fall {
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
+}
+
+/* ============ 场景A：博物馆（背景由 .home-bg 提供，无天气图层） ============
+ * 博物馆与船共用同一套定位变量（--hero-width / --hero-bottom），
+ * 保证点击转场时船在博物馆原位渐显、无跳动。
+ * 博物馆由 flex 居中改为绝对定位（left:50% + bottom），底部基准线与船一致。 */
+
+#museum-trigger {
+  position: absolute;
+  left: 50%;
+  bottom: var(--hero-bottom, 14vh);
+  width: var(--hero-width, min(82vw, 900px));
+  transform: translateX(-50%);
+  display: block;
+  border: 0; background: none; padding: 0; cursor: pointer;
+  z-index: 2;
+}
+#museum-img {
+  display: block; width: 100%; height: auto;
+  transition: transform 0.6s ease;
+}
+#museum-trigger:hover #museum-img,
+#museum-trigger:focus-visible #museum-img { transform: scale(1.012); }
+#museum-trigger:focus-visible { outline: 2px solid var(--gold); outline-offset: 6px; }
+
+/* 提示文案固定在博物馆下方，与博物馆共用水平中心；
+   距博物馆底部约 42px（文案高 + 间距），转场时与博物馆一起淡出 */
+.museum-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--hero-bottom, 14vh) - 42px);
+  transform: translateX(-50%);
+  color: rgba(232, 220, 195, 0.6); font-size: 13px; letter-spacing: 0.42em; text-indent: 0.42em;
+  z-index: 4;
+  animation: hint-breathe 3.2s ease-in-out infinite;
+}
+/* ============ 飞鸟群（博物馆页，场景A） ============
+ * 独立层叠加在 .museum-bg(z0) 之上、#museum-trigger(z2) 之下（z1），
+ * 飞过博物馆屋顶时被挡掉一半——暗示"在建筑后方飞"，符合场景深度。
+ *
+ * 可见窗口由 clip-path 控制（JS 在 activate 时写入 --clip-l / --clip-r）：
+ *   clip-path: inset(0 var(--clip-r, 25vw) 0 var(--clip-l, 25vw))
+ * 鸟的 keyframes 全程横穿 120vw（-20vw → +100vw），但只在可见窗口内露出——
+ * 进窗口时自然飞入、出窗口时自然飞出，不需要额外 opacity 渐变。
+ * 窗口大小由 motion.ts BIRDS.visibleStartVw / visibleEndVw / offscreenPadVw 控制，
+ * 改这三个参数就改飞行范围，不动 keyframes。
+ *
+ * 每只鸟的 transform 由一条复合 keyframes 驱动，随机值通过 CSS 变量注入：
+ *   --bird-scale / --bird-dur / --bird-delay / --bird-opacity / --bird-top-vh / --bird-bob */
+.bird-sky {
+  position: absolute; inset: 0;
+  z-index: 1; /* 高于 museum-bg(z0)、低于博物馆图(z2) */
+  pointer-events: none;
+  /* 可见窗口：clip-l = 左内缩 (visibleStartVw - offscreenPadVw)，clip-r = 右内缩 (100 - visibleEndVw - offscreenPadVw) */
+  clip-path: inset(0 var(--clip-r, 25vw) 0 var(--clip-l, 25vw));
+}
+.bird-sky .bird {
+  position: absolute;
+  left: 0; top: calc(var(--bird-top-vh, 15) * 1vh - 24px); /* 鸟高 48px，向上补偿一半 */
+  width: 48px; height: 48px;
+  transform-origin: center center;
+  image-rendering: pixelated;
+  opacity: var(--bird-opacity, 0.7);
+  animation: bird-fly
+    var(--bird-dur, 10s)
+    linear
+    infinite
+    var(--bird-delay, 0s);
+}
+.bird-sky .bird.reverse {
+  animation-name: bird-fly-reverse;
+}
+
+/* keyframes 全程横穿 120vw，配合 clip-path 窗口控制可见范围 */
+@keyframes bird-fly {
+  0%   { transform: translate(-20vw, 0) scale(var(--bird-scale, 0.7)); }
+  25%  { transform: translate(10vw, var(--bird-bob, -8px)) scale(var(--bird-scale, 0.7)); }
+  50%  { transform: translate(40vw, 0) scale(var(--bird-scale, 0.7)); }
+  75%  { transform: translate(70vw, calc(var(--bird-bob, -8px) * 0.6)) scale(var(--bird-scale, 0.7)); }
+  100% { transform: translate(100vw, 0) scale(var(--bird-scale, 0.7)); }
+}
+@keyframes bird-fly-reverse {
+  0%   { transform: translate(100vw, 0) scaleX(-1) scale(var(--bird-scale, 0.7)); }
+  25%  { transform: translate(70vw, var(--bird-bob, -8px)) scaleX(-1) scale(var(--bird-scale, 0.7)); }
+  50%  { transform: translate(40vw, 0) scaleX(-1) scale(var(--bird-scale, 0.7)); }
+  75%  { transform: translate(10vw, calc(var(--bird-bob, -8px) * 0.6)) scaleX(-1) scale(var(--bird-scale, 0.7)); }
+  100% { transform: translate(-20vw, 0) scaleX(-1) scale(var(--bird-scale, 0.7)); }
+}
+
+/* ============ 场景B：漂流之海（背景由 .home-bg 提供） ============ */
+#scene-sea { background: none; }
+
+.sea-title { position: absolute; inset: 0; z-index: 10; text-align: center; pointer-events: none; }
+
+/* 标题素材层：文字（.title-text.png）与背景动画（.title-bg.gif）都是 1920×1080 整幅画布，
+   以同一几何盒叠放（--title-* 由 main.ts 从 motion.ts TITLE 注入 :root），保持美工内部对位。
+   --title-scale 决定画布宽度（1 = 整屏宽，与 16:9 设计稿一致）；--title-x/--title-y 整体平移。
+   想整体左移：调 TITLE.x 为负值（如 '-6vw'）；想放大：调大 TITLE.scale。 */
+.title-layer {
+  position: absolute; top: 0; left: 0;
+  width: calc(100vw * var(--title-scale, 1));
+  aspect-ratio: 1920 / 1080;
+  transform: translate(var(--title-x, 0px), var(--title-y, 0px));
+  pointer-events: none;
+}
+.title-layer img {
+  position: absolute; inset: 0; display: block; width: 100%; height: 100%;
+  object-fit: contain;
+}
+/* 标题背景帧序列（.title-cloud 内 7 层 <img>）：全部叠在同一几何盒，
+   DOM 顺序 1→7 即层叠顺序（帧7 在最上）；可见性完全由 main.ts 时间轴的
+   opacity 淡入驱动（依次亮起、帧帧保留，最终叠合成完整背景），这里不做任何动画。 */
+/* 标题背景帧序列层：层级第二高（仅次于 .sea-title 的文字层 z10）。
+   必须高于云(z4)、雨(z7)、船(z4)、海浪(z2~z6)——否则背景下半部分会被前景海浪挡住、
+   气象云也会飘到标题背景之上；其他元素 z-index 一律不动。
+   9 与 10 是本场景唯一可用的两个最高档位（z-index 只接受整数）。 */
+.title-layer.title-cloud {
+  z-index: 9;
+  /* cover 几何：宽取「按视口宽适配」与「按视口高适配」的较大者，保证画布
+     在任何窗口比例下都铺满视口——16:9 正好贴合；更高的窗口（16:10/竖窗）
+     画布随高度放大，底边不再悬空露缝；更扁的窗口底部自然溢出。
+     特异性高于基类 .title-layer 与移动端 media query，云雾构图独立于文字层，
+     不影响「城」与印章的对位。云雾主体在左侧，left:0 保持左缘贴边，溢出只在右侧。 */
+  width: max(calc(100vw * var(--title-scale, 1)), calc(100vh * (1920 / 1080)));
+}
+/* 标题文字层：在 .sea-title(z10) 的层叠上下文内，压过标题背景与所有场景元素 */
+.title-text-layer { z-index: 1; }
+/* 标题印章：与标题文字同一几何盒（% 定位随 --title-* 缩放自动同步），盖在「城」字正下方。
+   left/top/height 由 main.ts 从 motion.ts TITLE.stamp* 注入 :root（% 标题画布）；
+   素材含透明边（印面在整幅 x373-844/y3-770），定位按整幅 img 标定后微调。
+   盖章动画（高处砸下→压扁→弹性回稳）全部由 main.ts 时间轴驱动，这里只管定位。 */
+.title-text-layer .title-stamp {
+  position: absolute;
+  inset: auto; /* 先重置 .title-layer img 的 inset:0，再给 left/top——顺序不能反，否则会被简写覆盖 */
+  left: var(--stamp-left, 10.1%);
+  top: var(--stamp-top, 86.6%);
+  width: auto;
+  height: var(--stamp-height, 13.2%);
+  will-change: transform, opacity, filter;
+}
+.scroll-hint {
+  position: absolute; left: 0; right: 0; bottom: 5vh;
+  color: rgb(188, 188, 188); font-size: 18px; letter-spacing: 0.4em; text-indent: 0.4em; font-weight: 500;
+}
+.scroll-hint span { display: block; }
+.chevron {
+  display: block; margin: 10px auto 0; width: 11px; height: 11px;
+  border-right: 1.5px solid rgba(232, 220, 195, 0.55); border-bottom: 1.5px solid rgba(232, 220, 195, 0.55);
+  transform: rotate(45deg);
+  animation: chevron-bob 1.9s ease-in-out infinite;
+}
+@keyframes chevron-bob { 0%, 100% { transform: translateY(0) rotate(45deg); opacity: 0.5; } 50% { transform: translateY(7px) rotate(45deg); opacity: 1; } }
+
+/* ============ 海面舞台 ============ */
+#sea { position: absolute; inset: 0; }
+
+/* 海浪图层容器：只负责定位与层叠（bottom/z-index/opacity/filter 由内联设置）。
+   不设高度、不做 overflow 裁切——图片按原始宽高比完整显示，
+   浪峰完整露出，不会被水平截断；高度由图片自然撑开。 */
+.wave-layer {
+  position: absolute; left: 0; width: 100%;
+}
+/* 纵向浮动层：小幅上下起伏形成涟漪感；各层 --bob-y/--bob-dur/--bob-delay 不同 */
+.wave-bob {
+  position: relative; width: 100%;
+  animation: wave-bob var(--bob-dur, 9s) ease-in-out var(--bob-delay, 0s) infinite;
+  will-change: transform;
+}
+/* 横向传送带：原图 + 镜像图并排，宽 = 单图宽 × 2；整体左移一张图宽完成无缝循环。
+   translateX(-25% → -75%)：首尾显示内容完全相同（都是一张完整图居中），
+   位移恰为一张图宽，循环无接缝无跳变。--scroll-dur 越短滚动越快。 */
+.wave-conveyor {
+  display: flex;
+  width: calc(var(--width-pct, 160) * 2 * 1%);
+  animation: wave-scroll var(--scroll-dur, 60s) linear var(--scroll-delay, 0s) infinite;
+  will-change: transform;
+}
+/* 单张图 = conveyor 的一半（即 widthPct% 屏宽）；高度按原始比例自适应 */
+.wave-conveyor img {
+  display: block;
+  width: 50%;
+  height: auto;
+  flex: 0 0 auto;
+}
+@keyframes wave-scroll {
+  from { transform: translateX(-25%); }
+  to   { transform: translateX(-75%); }
+}
+@keyframes wave-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(calc(var(--bob-y, 5px) * -1)); }
+}
+
+/* ============ 船（z4：海浪1(z6) 海浪2(z5) 在前，海浪3(z3) 海浪4(z2) 在后） ============
+ * 与博物馆共用 --hero-width / --hero-bottom 定位变量，确保转场时位置完全一致。
+ * 水平居中由 GSAP 的 xPercent:-50 接管（main.ts）——入场动画要给本元素加 scale/blur，
+ * 若保留 CSS translateX(-50%)，GSAP 会把它固化为像素值，resize 后偏离中心。
+ * 船的入场：opacity + scale + blur 渐显（main.ts 时间轴），不做 y 位移。 */
+#boat-wrap {
+  position: absolute; left: 50%; bottom: var(--hero-bottom, 14vh); z-index: 4;
+  width: var(--hero-width, min(82vw, 900px));
+}
+.boat-inner { position: relative; width: 100%; will-change: transform; }
+#boat-img { display: block; width: 100%; height: auto; filter: drop-shadow(0 22px 26px rgba(0, 0, 0, 0.45)); }
+
+/* 绳索覆盖层：与船图同一坐标系，随 .boat-inner 一起变换 */
+.rope-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+/* ============ 第二幕 · 通惠船（滚动进度驱动 + 粒子 + 3D） ============
+ * 第二幕不是独立页面，而是叠加在 #scene-sea 之上的透明覆盖层。
+ * 进度 = 0 时完全透明（船页正常显示）；进度推进后各元素依次显现。
+ * 整个场景用 pointer-events 精细控制——只有粒子/Three.js 画布接收滚轮和拖拽。
+ *
+ * 关键：z-index 必须高于船页内部元素。
+ *   .sea-title → z-index: 10，.sea-clouds → z-index: 4，海浪 → 2-6
+ *   #scene-act2 必须 > 10 才能盖过标题/云/雨/海浪 */
+#scene-act2 {
+  position: absolute; inset: 0;
+  z-index: 20; /* 必须高于船页标题 z-index:10 */
+  opacity: 0;
+  pointer-events: none; /* 未激活时不拦截任何事件 */
+}
+
+/* 卷轴阅读页背景（3d-page-bg.webp）：DOM 首位 = 全场景最底层，垫在 3D 船体与卷轴之下。
+ * 仅阅读态显示，不透明度由 act2Scene.fadeReadBackdrop 与道具/浪花反向驱动。 */
+.act2-read-bg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+
+/* Three.js 容器：内部动态挂 Canvas。
+ * 激活后 pointer-events:auto，捕获鼠标拖拽旋转与滚轮事件。 */
+#act2-three {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: auto; /* 默认允许接收事件，由 JS 激活状态统一开关 */
+  cursor: default;
+}
+#act2-three canvas {
+  display: block; width: 100%; height: 100%;
+  outline: none;
+  /* 禁止鼠标选中文本/拖拽图片 */
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* 激活拖拽时的光标：由 JS 设置 class="is-dragging" 切换 */
+#act2-three.is-grab { cursor: grab; }
+#act2-three.is-grabbing { cursor: grabbing; }
+/* 对话态悬停船体命中区：可点击指针（JS 射线命中隐形包围盒时切换） */
+#act2-three.is-hover-boat { cursor: pointer; }
+/* Three.js 画布聚焦时禁止默认的页面滚动干扰 */
+#act2-three canvas:focus { outline: none; }
+
+/* 激活第二幕：整体 pointer-events:auto，所有子层可以接收事件 */
+body.act2-active #scene-act2 {
+  pointer-events: auto;
+}
+
+/* ============ 第二幕文字层：书法字 + 「了解通惠」按钮 ============
+ * .act2-fonts-layer：书法字 GIF 书写动画层，共用同一几何与显现逻辑，按 DOM 位置分前后两层：
+ *   后层（「通」）在 #act2-three 之前 → 压在 3D 画布之下，船帆透过透明底叠在字前；
+ *   前层（「惠」）在 #act2-three 之后 → 叠在画布之上，笔画盖过船体右下缘，形成字船夹心构图。
+ *   两张 16:9 整幅透明底 GIF 字位已由美工预排，两层几何完全一致、画布严格对位。
+ *   几何按屏高定尺寸（画布高 = 屏高 × --font-scale），与船体同一基准，
+ *   任何窗口比例下字船环抱比例不走样；--font-scale/--font-x/--font-y 由 act2Scene 从
+ *   motion.ts ACT2.reveal.fonts 注入。
+ *   显现由 act2Scene.tick 按滚动进度驱动（opacity 逐帧 set，两层同步），GIF src 挂载/摘除由 JS 闩锁控制；
+ *   层与图均 pointer-events:none，不挡船体交互。
+ * .act2-title-layer：「了解通惠」按钮容器（DOM 位于浪花层之后、「惠」层之前，
+ *   不设 z-index → 靠 DOM 顺序：盖在船底之前，但压在「惠」之下），层本身 pointer-events:none。 */
+.act2-fonts-layer {
+  position: absolute;
+  top: 50%; left: 50%;
+  height: calc(100vh * var(--font-scale, 1));
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%) translate(var(--font-x, 0px), var(--font-y, 0px));
+  pointer-events: none;
+  opacity: 0; visibility: hidden; /* 初始隐藏态，由 tick 驱动浮现 */
+  will-change: opacity;
+}
+.act2-fonts-layer .act2-font {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* ---- 展陈道具层（展柜 + 罐，背景角色，位于 3D 船体之下）----
+ * 与字体层共用同一 16:9 屏高几何盒：素材是 1920×1080 整幅透明画布且位置已预排，
+ * img 铺满即可严格对位，无需任何位移参数。
+ * 升起动画由 act2Props.ts 逐项控制（transform/opacity 写在各 img 上，容器不动）。 */
+.act2-props-layer {
+  position: absolute;
+  top: 50%; left: 50%;
+  height: calc(100vh * var(--font-scale, 1));
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%) translate(var(--font-x, 0px), var(--font-y, 0px));
+  pointer-events: none;
+}
+.act2-prop {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0; visibility: hidden; /* 初始隐藏，由 act2Props 按配置依次升起 */
+  will-change: opacity, transform;
+}
+
+/* ---- 浪花层（压在「通」之下）----
+ * 与字体层同一几何盒，内含一个 1920×1080 的 canvas：
+ * 帧序列 assets/wave/*.webp（无透明损失，带 alpha）由 wavePlayer.ts 按自算时间轴
+ * 定时 drawImage 上去，倍速/两段衔接/循环全部由参数控制，Chrome / Safari 一致。
+ * 整层加 screen 混合：浪花本身是浅色水花，叠在深色场景上呈发光感；
+ * 透明处对 screen 是恒等色，不会糊住背景。
+ * 不透明度由 ACT2.reveal.props.wave.opacity 独立控制。 */
+.act2-wave-layer {
+  position: absolute;
+  top: 50%; left: 50%;
+  height: calc(100vh * var(--font-scale, 1));
+  aspect-ratio: 16 / 9;
+  transform: translate(-50%, -50%) translate(var(--font-x, 0px), var(--font-y, 0px));
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.act2-wave {
+  position: absolute; inset: 0; display: block;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  opacity: 0; visibility: hidden; /* 初始隐藏，起播时由 wavePlayer 淡入 */
+  will-change: opacity;
+}
+.act2-title-layer {
+  /* 不设 z-index：靠 DOM 顺序落在浪花层之后、「惠」层之前（盖船底、压「惠」下） */
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 5vh; /* 与屏幕底缘的呼吸留白，避让呼吸浮动的最大下沉量 */
+  pointer-events: none; /* 关键：不挡 3D 拖拽 */
+}
+
+/* 「了解通惠」按钮：金线描边、克制展签风；与标题同层同节奏（act2Scene 逐帧映射驱动浮现），
+ * 点击进入介绍镜头。初始隐藏态由 CSS 兜底，运行时 opacity/pointer-events 由 tick 按进度写入 */
+.act2-cta {
+  font-family: inherit; /* 沿用全局宋体栈 */
+  font-size: clamp(13px, min(1.3vw, 1.9vh), 16px);
+  letter-spacing: 0.42em;
+  color: var(--ivory);
+  background: transparent;
+  border: 1px solid rgba(201, 168, 106, 0.45); /* 金线描边（--gold 的低透明态） */
+  padding: 0.85em 2em 0.85em 2.42em; /* 左侧补偿 letter-spacing 尾距，保持视觉居中 */
+  margin-top: 3.4vh;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; pointer-events: none; /* 初始隐藏不可点，由 tick 驱动 */
+  transition: color 0.35s ease, border-color 0.35s ease, background-color 0.35s ease;
+  will-change: opacity, filter, transform;
+}
+.act2-cta:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: rgba(201, 168, 106, 0.08);
+}
+.act2-cta:active { background: rgba(201, 168, 106, 0.16); }
+.act2-cta:focus-visible { outline: 1px solid var(--gold); outline-offset: 4px; }
+
+/* 「开启对话」入口：卷轴正文滑到底端后浮现于屏幕右下角，无边框纯文字 + 滑动提示；
+ * 初始隐藏不可点，由 act2Scene 按底端状态淡入淡出；画面上右滑同样可进入。 */
+.act2-dialogue-cta {
+  position: absolute;
+  right: 4.5vw;
+  bottom: 5vh;
+  font-family: inherit;
+  font-size: clamp(13px, min(1.3vw, 1.9vh), 16px);
+  letter-spacing: 0.18em;
+  color: rgba(240, 234, 222, 0.92);
+  background: none;
+  border: 0;
+  padding: 0.35em 0;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+  transition: color 0.35s ease;
+  will-change: opacity, transform;
+}
+.act2-dialogue-cta:hover { color: var(--gold); }
+.act2-dialogue-cta:active { color: var(--gold); }
+.act2-dialogue-cta:focus-visible { outline: 1px solid var(--gold); outline-offset: 4px; }
+
+/* ============ 第二幕角色介绍层：当前阶段卷轴式人物档案 ============
+ * 素材：assets/卷轴纸.png、上轴.png、下轴.png（均为 1920×1080 整屏透明画布，
+ *   美工已按同一画布预排：纸面 x 6.0%–40.1% / y 23.5%–84.3%，
+ *   上轴 y 16.9%–23.7%，下轴 y 84.1%–90.9%，轴杆比纸面左右各宽约 78px）。
+ * 结构：.scroll-frame = 16:9 美术画布（高度由 SCROLL.art 注入），三张 img 铺满同一盒 → 严格对位；
+ *   文字按纸面内区的百分比定位，任意窗口比例下不变形。
+ * 层 pointer-events:auto（卷轴需要 wheel / touch / 按住拖动交互），初始 opacity:0；
+ * 气泡页复用同一层：卷轴暂停后层继续可见，气泡/提示/涟漪由 introDialogue.ts 填充。 */
+.act2-intro-layer {
+  position: absolute; inset: 0; z-index: 2;
+  pointer-events: none; /* 初始态不挡 .act2-cta 按钮点击；activate 时由 JS 开启 */
+  opacity: 0;
+}
+
+/* ---- 卷轴美术画布：16:9，桌面高度 = 屏高（移动端由 --scroll-canvas-h-m 改为屏宽倍数） ---- */
+.scroll-frame {
+  position: absolute; left: 0; top: 0;
+  height: var(--scroll-canvas-h, 100vh);
+  aspect-ratio: 16 / 9;
+}
+@media (max-width: 720px) {
+  .scroll-frame { height: var(--scroll-canvas-h-m, 123vw); }
+}
+
+/* 三张整幅透明画布素材：铺满同一美术盒，卷轴/轴杆位置由素材自身预排决定 */
+.scroll-art {
+  position: absolute; inset: 0;
+  display: block; width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+/* 正文滚动窗口：定位在纸面装饰边框内的空白区（百分比由 SCROLL.art.viewport 注入）。
+ * 可按住拖动浏览（pointer），拖动期间加 .is-dragging 关闭文字选中，避免拖拽被选区打断。 */
+.scroll-viewport {
+  position: absolute;
+  left: var(--scroll-viewport-left, 8.9%);
+  right: var(--scroll-viewport-right, 63.6%);
+  top: var(--scroll-viewport-top, 28.6%);
+  bottom: var(--scroll-viewport-bottom, 20.8%);
+  overflow: hidden;
+  cursor: grab;
+  /* wheel/touch 在元素内部消费，阻止传播到外层 scrollController */
+}
+.scroll-viewport.is-dragging {
+  cursor: grabbing;
+  user-select: none; -webkit-user-select: none;
+}
+
+/* 正文内容：独立 HTML 文字层，scrollProfile.buildContent 写入；
+ * 华文中宋优先，回退系统宋体/serif。Mac 上 STZhongsong 预装可用，Windows 通常回退宋体 */
+.scroll-content {
+  font-family: "华文中宋", "STZhongsong", "SimSun", "宋体", "Noto Serif SC", serif;
+  font-size: 16px;
+  line-height: 1.9;
+  color: #3c3322;
+  letter-spacing: 0.02em;
+  padding-bottom: 40px;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.scroll-content::-webkit-scrollbar { display: none; }
+@media (max-width: 720px) {
+  .scroll-content { font-size: 15px; line-height: 1.85; }
+}
+
+/* 分组标题（人物基本信息 / 名字与来历 / …） */
+.sp-group {
+  margin-top: 36px; margin-bottom: 14px;
+  font-family: "华文中宋", "STZhongsong", "SimSun", serif;
+  font-size: 18px; font-weight: 600;
+  color: #5c4a2c; letter-spacing: 0.12em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(180, 158, 110, 0.28);
+}
+.sp-group:first-child { margin-top: 0; }
+
+/* 字段：标签 + 值 */
+.sp-field { margin-bottom: 16px; }
+.sp-label {
+  font-size: 13px; color: #8a7b5e;
+  letter-spacing: 0.18em; margin-bottom: 6px;
+  font-family: "STZhongsong", "SimSun", serif;
+}
+.sp-value p { margin: 0; text-indent: 2em; }
+
+/* ---- 章4 角色介绍：美工分镜对话框（图片按图内版式铺屏，正文按纸面正文区百分比排入） ---- */
+.act2-bubbles { position: absolute; inset: 0; pointer-events: none; }
+
+.act2-dialogue-art {
+  position: absolute; inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity, filter, transform;
+}
+.act2-dialogue-img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+/* 正文：纸面手写字语言（华文中宋），垂直居中（单行/多行块心对齐），段首缩进两格 */
+.act2-dialogue-text {
+  position: absolute;
+  display: flex; flex-direction: column; justify-content: center;
+  padding-bottom: 0.6em; /* 光学修正：中文字形基线偏下，整体微上推，避免视觉上"靠下" */
+  font-family: "STZhongsong", "SimSun", serif;
+  font-weight: 400;
+  color: #40504a; /* 低饱和灰绿，压在米白纸上 */
+  line-height: 1.75;
+  letter-spacing: 0.04em;
+  text-align: justify;
+  word-break: break-word;
+  overflow: hidden;
+}
+.act2-dialogue-text p { margin: 0; text-indent: 2em; }
+.act2-dialogue-text p + p { margin-top: 0.9em; }
+/* 逐字打字：单字初始透明，由 GSAP 时间轴按序点亮 */
+.act2-char { opacity: 0; }
+
+.act2-hint {
+  position: absolute;
+  transform: translateX(-50%);
+  margin: 0;
+  padding-top: 22px;
+  font-size: clamp(12px, min(1.3vw, 1.75vh), 14px);
+  font-weight: 300;
+  color: rgba(232, 220, 195, 0.75);
+  letter-spacing: 0.32em; text-indent: 0.32em;
+  white-space: nowrap;
+  opacity: 0;
+  will-change: opacity;
+  pointer-events: none;
+}
+.act2-hint::before {
+  content: '';
+  position: absolute; left: 50%; top: 0;
+  width: 1px; height: 16px;
+  background: linear-gradient(to bottom, rgba(159, 216, 212, 0), rgba(159, 216, 212, 0.55));
+}
+
+.act2-ripple {
+  position: absolute;
+  width: 140px; height: 44px;
+  margin: -22px 0 0 -70px;
+  border: 1px solid rgba(159, 216, 212, 0.5);
+  border-radius: 50%;
+  opacity: 0;
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+
+/* ============ 移动端 ============ */
+@media (max-width: 720px) {
+  #museum-trigger { width: var(--hero-width-m, 92vw); bottom: var(--hero-bottom-m, 10vh); }
+  .museum-hint { bottom: calc(var(--hero-bottom-m, 10vh) - 38px); }
+  #boat-wrap { width: var(--hero-width-m, 92vw); bottom: var(--hero-bottom-m, 10vh); }
+  .title-layer {
+    width: calc(100vw * var(--title-scale-m, 1.9));
+    transform: translate(var(--title-x-m, 0px), var(--title-y-m, 0px));
+  }
+  /* 气泡对话：移动端收窄行距（正文框与字号由 JS 按图片版式与视口换算） */
+  .act2-hint { letter-spacing: 0.24em; text-indent: 0.24em; }
+}
+
+/* ============ 无障碍：减弱动态 ============ */
+@media (prefers-reduced-motion: reduce) {
+  .wave-bob, .wave-conveyor, .cloud-drift, .cloud-bob, .rain-col, .chevron, .museum-hint { animation: none !important; }
+}

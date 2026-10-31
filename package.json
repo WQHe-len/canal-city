@@ -1,0 +1,22 @@
+{
+  "name": "canal-city",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "运河上飘来一座城 —— 北京大运河文化科普互动网站",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@types/three": "^0.186.0",
+    "gsap": "^3.12.5",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8"
+  }
+}

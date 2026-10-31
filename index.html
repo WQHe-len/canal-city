@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="运河上飘来一座城 —— 北京大运河文化科普互动网站" />
+    <title>运河上飘来一座城</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230a0f15'/%3E%3Cpath d='M6 21q5 -5 10 0t10 0' fill='none' stroke='%23c9a86a' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M16 8l5 9h-10z' fill='%23e8dcc3'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+    <link rel="stylesheet" href="/src/styles/timeline.css" />
+    <link rel="stylesheet" href="/src/styles/era.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- 加载层 -->
+      <div id="preloader" aria-label="加载中">
+        <p class="preloader-text">一城 · 正在漂流而至</p>
+        <div class="preloader-bar"><i id="preloader-fill"></i></div>
+      </div>
+
+      <!-- 全局水墨波纹底图（船页背景；博物馆页由场景内的 .museum-bg 覆盖） -->
+      <div class="home-bg" aria-hidden="true"></div>
+
+      <!-- 第一幕 · 场景A：博物馆（专用背景 museum-bg；船页仍用全局 .home-bg） -->
+      <section id="scene-museum" class="scene is-hidden" aria-label="大运河博物馆">
+        <div class="museum-bg" aria-hidden="true"></div>
+        <!-- 飞鸟群：独立层（z 高于 museum-bg、低于博物馆图）；8 只鸟 CSS keyframes 水平飞过；
+             JS 在博物馆激活时注入 src="bird.webp"，与翅膀动画同步启动。飞行范围/尺寸/时长等参数集中在 motion.ts BIRDS。 -->
+        <div class="bird-sky" aria-hidden="true"></div>
+        <button id="museum-trigger" type="button" aria-label="点击博物馆，启程">
+          <img id="museum-img" alt="北京大运河博物馆（临时占位素材）" />
+        </button>
+        <p class="museum-hint">点击博物馆 · 启程</p>
+      </section>
+
+      <!-- 第二幕 · 通惠船：滚动驱动的 3D 船体揭幕；
+           叠加在 scene-sea 之上（同一 fixed 视口，不破坏 overflow:hidden 布局） -->
+      <section id="scene-act2" class="scene is-hidden" aria-label="通惠船" aria-hidden="true">
+        <!-- 卷轴阅读页背景（3d-page-bg.webp，夜色运河全景）：全场景最底层，cover 铺满。
+             仅阅读态显示——进阅读态与道具/浪花反向淡入淡出（act2Scene.fadeReadBackdrop），
+             定格态保持透明，不影响亮相页的纯黑背景。src 由 main.ts 从 ASSETS.readBg 注入。 -->
+        <img class="act2-read-bg" alt="" aria-hidden="true" />
+        <!-- 展陈道具层（最底层，背景角色）：展柜 + 罐，位于 3D 船体之下。
+             所有素材均为 1920×1080 的 16:9 透明画布（美工已按画幅预排位置），
+             img 铺满同一几何盒即可严格对位，无需任何位移参数；
+             升起时序由 act2Props.ts 按 ACT2.props 配置驱动（DOM 顺序 = 叠放顺序）。 -->
+        <div class="act2-props-layer" aria-hidden="true">
+          <img class="act2-prop act2-prop-case-1" alt="" />
+          <img class="act2-prop act2-prop-case-2" alt="" />
+          <img class="act2-prop act2-prop-jar-1" alt="" />
+          <img class="act2-prop act2-prop-jar-2" alt="" />
+          <img class="act2-prop act2-prop-jar-3" alt="" />
+          <img class="act2-prop act2-prop-jar-4" alt="" />
+          <img class="act2-prop act2-prop-jar-5" alt="" />
+          <img class="act2-prop act2-prop-jar-6" alt="" />
+          <img class="act2-prop act2-prop-jar-7" alt="" />
+          <img class="act2-prop act2-prop-jar-8" alt="" />
+        </div>
+        <!-- 浪花层：压在「通」之下（道具层 → 浪花 → 通 → 3D 船 → 按钮 → 惠）。
+             双段播放（wavePlayer.ts）：浪花1 播一遍 → 立刻接浪花2 → 浪花2 循环或定格。
+             canvas 逐帧绘制，帧序列为 assets/wave/*.webp（由 GIF 拆帧转码，保留透明），
+             时间轴自算，所有浏览器（含 Safari）读同一套倍速/循环参数。 -->
+        <div class="act2-wave-layer" aria-hidden="true">
+          <canvas class="act2-wave act2-wave-canvas" width="1920" height="1080" aria-hidden="true"></canvas>
+        </div>
+        <!-- 书法字书写动画层（后层）：「通」GIF 压在 3D 画布之下，船帆透过透明底叠在字前。
+             显现时机由 act2Scene.tick 按章节进度驱动。 -->
+        <div class="act2-fonts-layer" aria-hidden="true">
+          <img class="act2-font act2-font-tong" alt="" />
+        </div>
+        <!-- Three.js 3D 渲染器容器（内部动态挂 Canvas） -->
+        <div id="act2-three"></div>
+        <!-- 「了解通惠」按钮：定格后浮现（btnStart→btnEnd 进度驱动），点击进入卷轴介绍页。
+             叠放位置：盖在船底之前、但压在「惠」之下（DOM 在惠层之前，层不设 z-index）。
+             层本身 pointer-events:none 不挡拖拽。 -->
+        <div class="act2-title-layer">
+          <button type="button" class="act2-cta">了解通惠</button>
+        </div>
+        <!-- 书法字书写动画层（前层）：「惠」GIF 叠在 3D 画布之上，笔画盖过船体右下缘——
+             与后层「通」形成字船夹心构图（图1）。几何与前层一致，两字画布严格对位。 -->
+        <div class="act2-fonts-layer" aria-hidden="true">
+          <img class="act2-font act2-font-hui" alt="" />
+        </div>
+        <!-- 卷轴式人物档案层：当前章 3 阶段使用。
+             美工素材（卷轴纸 / 上轴 / 下轴）均为 1920×1080 整屏透明画布，按同一画布预排；
+             三张 PNG 铺满同一 16:9 美术盒即严格对位，文字与进度条在盒内按纸面内区百分比定位。
+             .scroll-content 保持独立 HTML 文字层，滚动/自动播放逻辑与素材解耦。
+             卷轴读完后由右下角「开启对话」进入气泡页（introDialogue.ts）。
+             当前阶段 act2Scene.ts 只创建 scrollProfile，气泡对话按需创建，互不干扰。 -->
+        <div class="act2-intro-layer" aria-hidden="true">
+          <div class="scroll-frame">
+            <!-- 纸面（底层） -->
+            <img class="scroll-art scroll-art-paper" src="assets/卷轴纸.png" alt="" aria-hidden="true" />
+            <!-- 正文滚动窗口：overflow:hidden；.scroll-content 是真正滚动的内层 -->
+            <div class="scroll-viewport">
+              <div class="scroll-content">
+                <!-- 正文由 scrollProfile.ts 在 activate 时写入（文案在该模块顶部 CONTENT 常量） -->
+              </div>
+            </div>
+            <!-- 上下轴杆（前景，压在纸面上下缘） -->
+            <img class="scroll-art scroll-art-rod-top" src="assets/上轴.png" alt="" aria-hidden="true" />
+            <img class="scroll-art scroll-art-rod-bottom" src="assets/下轴.png" alt="" aria-hidden="true" />
+          </div>
+          <!-- 「开启对话」入口：正文滑到最底端后浮现于画面右下角；也可在画面上向右滑动进入 -->
+          <button type="button" class="act2-dialogue-cta">点击·开启对话</button>
+          <!-- 气泡对话宿主：气泡 / 一次性提示 / 水波涟漪由 introDialogue.ts 运行时填充 -->
+          <div class="act2-bubbles" aria-hidden="true"></div>
+          <p class="act2-hint" aria-hidden="true">轻触船身，听我继续说</p>
+          <div class="act2-ripple" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <!-- 第一幕 · 场景B：漂流之海 -->
+      <section id="scene-sea" class="scene is-hidden" aria-label="运河上飘来一座城">
+        <div class="sea-clouds weather-clouds" data-weather="clouds"></div>
+        <!-- 标题背景帧序列（7 帧 WebP，pics/标题背景图层）：与标题文字同一画布几何（--title-*），
+             独立成层（z9），层级仅次于下方 .sea-title 内的标题文字（z10）；
+             帧 <img> 由 main.ts 启动时动态构建，出现时按顺序 crossfade 播放（见 motion.ts TITLE） -->
+        <div class="title-layer title-cloud" aria-hidden="true"></div>
+        <div id="sea">
+          <!-- 海浪图层由 seaScene.ts 动态构建：海浪2(z5) 在船前，海浪3/4(z3/z2) 在船后 -->
+          <div id="boat-wrap">
+            <div class="boat-inner">
+              <img id="boat-img" alt="" />
+              <!-- 绳索 SVG 由 boatRig.ts 注入，与船同坐标系 -->
+            </div>
+          </div>
+          <!-- 海浪1(z6 最前景) 动态构建到此处，遮挡船底 -->
+        </div>
+        <div class="sea-rain weather-rain" data-weather="rain"></div>
+        <div class="sea-title">
+          <!-- 标题文字（书法+印章）：位于 .sea-title(z10) 内 = 最高层级，在背景 GIF 之上；
+               src 由 main.ts 从 ASSETS.titleText 注入 -->
+          <div class="title-layer title-text-layer">
+            <img class="title-text" alt="运河上飘来一座城" />
+            <!-- 印章：与文字同一几何盒（% 定位随缩放同步），标题全部显示完后最后盖下 -->
+            <img class="title-stamp" alt="" />
+          </div>
+          <p class="scroll-hint"><span>上划 · 随水而行</span><i class="chevron" aria-hidden="true"></i></p>
+        </div>
+      </section>
+
+      <!-- 第五幕 · 时间线导航:三张 1920×1080 背景垂直堆叠成一张长图(1920×3240),
+           河道作为时间轴,8 个时间结点沿途分布,通惠 IP 船沿 SVG path 在结点间滑行。
+           点击结点 → 船划过去 → 落定 → 淡出到对应时期占位页(scene-era)。 -->
+      <section id="scene-timeline" class="scene is-hidden" aria-label="通惠河长河" aria-hidden="true">
+        <!-- 纵向滚动容器:三张背景 + SVG 河道 + 8 结点 + 船 全部在内部滚动 -->
+        <div class="timeline-scroll">
+          <div class="timeline-canvas">
+            <div class="timeline-page" data-i="0">
+              <img class="timeline-bg" data-i="0" alt="" aria-hidden="true" />
+            </div>
+            <div class="timeline-page" data-i="1">
+              <img class="timeline-bg" data-i="1" alt="" aria-hidden="true" />
+            </div>
+            <div class="timeline-page" data-i="2">
+              <img class="timeline-bg" data-i="2" alt="" aria-hidden="true" />
+            </div>
+            <!-- 河道 SVG:path 不可见(stroke=transparent),仅作为船滑行的轨迹;
+                 结点 circle 由 JS 按 path 长度百分比定位到 .timeline-nodes 里 -->
+            <svg class="timeline-svg" viewBox="0 0 1920 3240" preserveAspectRatio="none" aria-hidden="true">
+              <path class="timeline-path" d="" fill="none" stroke="transparent" />
+            </svg>
+            <!-- 结点层:8 个时间点(由 timelineScene.ts 按 path 长度百分比渲染为 button) -->
+            <div class="timeline-nodes"></div>
+            <!-- 船(通惠 IP):绝对定位,GSAP MotionPathPlugin 驱动沿 path 滑行 -->
+            <img class="timeline-boat" alt="通惠船" aria-hidden="true" />
+          </div>
+        </div>
+        <!-- 常驻标题 -->
+        <header class="timeline-header">
+          <h2 class="timeline-title">通惠河 · 千年长河</h2>
+          <p class="timeline-sub">顺流而下,点一处时光,听一段故事</p>
+        </header>
+      </section>
+
+      <!-- 时期详情页:结点内四态(标题页/卷轴页/文物触发页/文物详情页+勋章浮层)
+           由 timeline/eraScene.ts 动态构建到 .era-stage 内;
+           未建设时期显示占位页。左上角「← 返回长河」默认隐藏,流程完成(全部文物看完
+           且勋章页浮现完毕)后才出现,避免用户中途点出去。 -->
+      <section id="scene-era" class="scene is-hidden" aria-label="时期详情" aria-hidden="true">
+        <button class="era-back" type="button" aria-label="返回长河">
+          <span class="era-back-arrow" aria-hidden="true">←</span>
+          <span class="era-back-text">返回长河</span>
+        </button>
+        <!-- 16:9 美术画布:JS 按 cover 规则等比铺满视口,子元素 % 定位与美术严格对位 -->
+        <div class="era-stage"></div>
+      </section>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

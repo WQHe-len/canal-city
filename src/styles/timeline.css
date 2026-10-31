@@ -1,0 +1,353 @@
+/* ============ 第五幕 · 时间线导航(scene-timeline) ============ */
+
+#scene-timeline {
+  background: var(--ink-black);
+  overflow: hidden;
+}
+
+/* 纵向滚动容器:三张背景 + SVG 河道 + 8 结点 + 船 全部在内部滚动
+   scroll-snap-type: y mandatory 让滚动吸附到每页,不会停在两页中间地带 */
+.timeline-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  scroll-snap-type: y mandatory;
+  scroll-snap-stop: always;
+}
+.timeline-scroll::-webkit-scrollbar { display: none; }
+
+/* 内容画布:宽 100vw,高 = 100vw × 3240/1920 = 168.75vw(三张 16:9 堆叠) */
+.timeline-canvas {
+  position: relative;
+  width: 100vw;
+  height: calc(100vw * 3240 / 1920);
+}
+
+/* 三张背景:各宽 100vw,高 56.25vw(16:9),垂直堆叠,作为 scroll-snap target */
+.timeline-page {
+  position: relative;
+  width: 100vw;
+  height: calc(100vw * 1080 / 1920);
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  z-index: 0;
+}
+.timeline-page[data-i="0"] { }
+.timeline-page[data-i="1"] { }
+.timeline-page[data-i="2"] { }
+
+.timeline-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 0;
+}
+
+/* 装饰层(花/鸟/竹):每组一个容器,绝对定位覆盖对应 bg 区域;
+   容器内每张 img 都是 1920×1080 整幅透明画布,铺满容器即严格对位。
+   分组:flower → bg-1(top:0),birds → bg-2(top:56.25vw),bamboo → bg-3(top:112.5vw)。 */
+.timeline-decor {
+  position: absolute;
+  left: 0;
+  width: 100vw;
+  height: calc(100vw * 1080 / 1920);
+  pointer-events: none;
+  z-index: 1;
+}
+.timeline-decor[data-bg="0"] { top: 0; }
+.timeline-decor[data-bg="1"] { top: calc(100vw * 1080 / 1920); }
+.timeline-decor[data-bg="2"] { top: calc(100vw * 1080 / 1920 * 2); }
+
+.timeline-decor img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* 摇晃动画:绕画布中心轻微旋转,周期/相位由 JS 内联 stagger */
+  animation: decorSway var(--sway-dur, 4s) ease-in-out var(--sway-delay, 0s) infinite;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+@keyframes decorSway {
+  0%, 100% { transform: rotate(-0.45deg) translateY(0); }
+  50%      { transform: rotate(0.45deg)  translateY(-2px); }
+}
+
+/* 接缝遮罩云:盖在 bg1/bg2(y=1080)与 bg2/bg3(y=2160)的接缝上,
+   随页面滚动(放在 .timeline-canvas 里,绝对定位内容),全程遮住拼缝。
+   横向宽度 > 100vw 让云超出屏幕两端,配合轻微横向漂移动画,看起来在"飘"。 */
+.timeline-seam-cloud {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 5; /* 高于船(z4):云在船前掠过,遮挡接缝同时也让船穿行云中 */
+  opacity: 0.9;
+  animation: seamDrift var(--drift-dur, 30s) ease-in-out var(--drift-delay, 0s) infinite;
+  will-change: transform;
+}
+
+@keyframes seamDrift {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(var(--drift-x, 40px)); }
+}
+
+/* 河道 SVG:铺满整个画布,path 不可见(stroke=transparent) */
+.timeline-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 结点层:8 个时间点(由 timelineScene.ts 按 path 长度百分比渲染) */
+.timeline-nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ============ 调试叠层:坐标系网格 + 锚点(改 motion.ts TIMELINE.debug 关闭) ============ */
+.timeline-debug {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.timeline-debug-svg { display: block; width: 100%; height: 100%; }
+/* 网格 */
+.tdb-grid-minor { stroke: rgba(64, 214, 255, 0.18); stroke-width: 1; }
+.tdb-grid-major { stroke: rgba(64, 214, 255, 0.45); stroke-width: 1.6; }
+.tdb-label {
+  fill: rgba(122, 232, 255, 0.95);
+  font: 600 22px ui-monospace, Menlo, monospace;
+}
+/* 三张背景接缝 */
+.tdb-seam { stroke: rgba(255, 138, 76, 0.9); stroke-width: 2; stroke-dasharray: 14 8; }
+.tdb-seam-label {
+  fill: rgba(255, 172, 92, 1);
+  font: 600 23px ui-monospace, Menlo, monospace;
+}
+/* 河道线 */
+.tdb-river { stroke: rgba(64, 214, 255, 0.9); stroke-width: 2.2; fill: none; }
+/* 贝塞尔控制多边形 + 控制点圆点 */
+.tdb-handle { stroke: rgba(255, 180, 90, 0.55); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.tdb-ctrl { fill: rgba(255, 180, 90, 0.88); stroke: rgba(255, 232, 188, 0.9); stroke-width: 1.2; }
+/* 航道锚点 P0..Pn */
+.tdb-path-anchor { stroke: rgba(255, 255, 255, 0.75); stroke-width: 1.4; fill: rgba(255, 255, 255, 0.25); }
+.tdb-path-label {
+  fill: rgba(230, 244, 255, 0.85);
+  font: 500 18px ui-monospace, Menlo, monospace;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.5);
+  stroke-width: 3px;
+}
+/* 结点:洋红十字 = 手填坐标,绿圈 = 吸附到河道后的位置 */
+.tdb-raw { stroke: #ff4fd8; stroke-width: 2; }
+.tdb-raw-dot { fill: rgba(255, 79, 216, 0.95); }
+.tdb-snap { stroke: #6dff8a; stroke-width: 1.6; fill: rgba(109, 255, 138, 0.2); }
+.tdb-link { stroke: rgba(255, 224, 102, 0.95); stroke-width: 1.4; stroke-dasharray: 7 6; }
+.tdb-node-label {
+  fill: #ffe066;
+  font: 700 22px ui-monospace, Menlo, monospace;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 3px;
+}
+/* 船起点 */
+.tdb-boat { stroke: #4fd8ff; stroke-width: 2; }
+.tdb-boat-label {
+  fill: #4fd8ff;
+  font: 700 20px ui-monospace, Menlo, monospace;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 3px;
+}
+/* 固定光标读数 */
+.timeline-debug-hud {
+  position: fixed;
+  top: 84px;
+  right: 24px;
+  z-index: 30;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(6, 12, 16, 0.8);
+  border: 1px solid rgba(122, 232, 255, 0.35);
+  color: #7ae8ff;
+  font: 600 13px ui-monospace, Menlo, monospace;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.timeline-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  /* 命中盒放大:视觉 28px,点击 44px */
+  width: 44px;
+  height: 44px;
+}
+
+/* 结点视觉:外圈光晕 + 内心圆点 */
+.timeline-node::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(232, 220, 195, 0.4) 0%,
+    rgba(232, 220, 195, 0.15) 50%,
+    transparent 70%
+  );
+  animation: nodeGlow 2.4s ease-in-out infinite;
+}
+
+/* 结点视觉（上）:dot-light.png 灯柱——底边（灯座）贴在结点坐标上，只向上生长，
+   所以结点坐标、点击中心、标签位置都不变。用真实 img，宽度由 JS 按画布缩放设置 */
+.timeline-node-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 84px; /* 初始值,运行时由 JS 按画布缩放覆盖(见 TIMELINE.node.imgWidthPx) */
+  height: auto;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  transition: transform 0.2s ease, filter 0.3s ease, opacity 0.3s ease;
+}
+
+.timeline-node:hover .timeline-node-dot {
+  transform: translateX(-50%) scale(1.1);
+}
+
+.timeline-node.is-visited .timeline-node-dot { opacity: 0.78; }
+.timeline-node.is-current .timeline-node-dot {
+  filter: brightness(1.12) drop-shadow(0 0 10px rgba(255, 176, 90, 0.9));
+}
+
+/* 结点标签已移除(设计上只保留灯柱图标) */
+
+@keyframes nodeGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* 船(通惠 IP):绝对定位,GSAP 驱动沿 path 滑行;层级高于装饰,船是视觉主角 */
+.timeline-boat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 4;
+  /* 宽高由 JS 按画布宽比例设置(100vw × 0.16) */
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* 船头初始朝向:-45°(通惠.png 船头朝左上),让船对齐 path 切线方向 */
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+
+/* 常驻标题(左上角,不随滚动) */
+.timeline-header {
+  position: absolute;
+  top: 28px;
+  left: 36px;
+  z-index: 5;
+  pointer-events: none;
+  color: var(--ivory, #f7f2e6);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+.timeline-title {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  margin-bottom: 4px;
+}
+.timeline-sub {
+  font-size: 12px;
+  letter-spacing: 0.25em;
+  opacity: 0.7;
+}
+
+/* ============ 时期占位页(scene-era) ============ */
+
+#scene-era {
+  background: var(--ink-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.era-back {
+  position: absolute;
+  top: 28px;
+  left: 36px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(232, 220, 195, 0.08);
+  border: 1px solid rgba(232, 220, 195, 0.25);
+  border-radius: 999px;
+  color: var(--ivory, #e8dcc3);
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.era-back:hover {
+  background: rgba(232, 220, 195, 0.15);
+  border-color: rgba(232, 220, 195, 0.5);
+}
+.era-back-arrow { font-size: 16px; }
+
+.era-placeholder {
+  text-align: center;
+  color: var(--ivory, #e8dcc3);
+  max-width: 600px;
+  padding: 0 40px;
+}
+.era-kicker {
+  font-size: 13px;
+  letter-spacing: 0.4em;
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+.era-title {
+  font-size: 42px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  margin-bottom: 24px;
+  color: var(--ivory, #e8dcc3);
+}
+.era-sub {
+  font-size: 15px;
+  line-height: 1.8;
+  opacity: 0.65;
+  letter-spacing: 0.08em;
+}
