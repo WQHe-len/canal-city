@@ -67,8 +67,6 @@ function preloadList(): string[] {
     ASSETS.titleText,
     ...ASSETS.titleBgFrames,
     ASSETS.stamp,
-    // 第二幕：通惠船粒子汇聚目标轮廓 + 发光河道图
-    ASSETS.tonghui,
     // 博物馆页飞鸟群（birdScene.ts：每只只在 activate 时挂载 src，防翅膀动画提前播完）
     'assets/bird.webp',
     // 书法字静帧：GIF 播完后 swap 的定格帧，须预加载保证瞬时切换无闪烁。
