@@ -4,6 +4,7 @@ dist/
 
 # 大体积模型源文件（运行用的是 public/assets/tonghui-boat.glb）
 model-src/
+tonghui-boat.glb
 
 # 设计与过程资料，不进部署仓库
 docs/
