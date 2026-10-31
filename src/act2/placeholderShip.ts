@@ -30,6 +30,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import gsap from 'gsap';
 import { ACT2, SCROLL } from '../config/motion';
@@ -748,7 +749,7 @@ export function createPlaceholderShip(container: HTMLElement): PlaceholderShip {
       setupModel(buildPlaceholderJunk());
       warmupAndResolve();
     } else {
-      new GLTFLoader().load(
+      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(
         M.glbUrl,
         (gltf) => {
           if (!disposed) { setupModel(gltf.scene); warmupAndResolve(); }
