@@ -883,7 +883,7 @@ export const ACT2 = {
     fillLightIntensity: 0.5,
     fillLightColor: 0x88aacc,
     /** 正式模型 GLB（public/assets，美工交付；后续彩色版直接覆盖同名文件即可生效） */
-    glbUrl: '/assets/tonghui-boat.glb',
+    glbUrl: './assets/tonghui-boat.glb',
     /** true = 仍用程序化占位船（对比/兜底）；false = 加载正式 GLB 模型 */
     usePlaceholder: false,
     /** 材质中和：GLB 无环境贴图，metal=1 部件在直接光下会发黑——临时压低金属度保底可视；
