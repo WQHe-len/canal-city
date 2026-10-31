@@ -225,7 +225,7 @@ export const ROPE = {
   endY: 505,
   knotW: 58,
   knotH: 74,
-  knotSrc: 'assets/rope-knot.png',
+  knotSrc: 'assets/rope-knot.webp',
   /** 绳索相对桅杆的滞后钟摆（秒/度），相位与船体主摇晃错开 */
   duration: 6.4,
   times: [0, 0.2, 0.42, 0.62, 0.82, 1],
@@ -282,8 +282,8 @@ export interface RainCfg {
 }
 
 export const SEA_RAIN: RainCfg[] = [
-  { src: 'assets/rain-1.png', duration: 1.0, opacity: 0.14, delay: -0.2, scale: 1.08 },
-  { src: 'assets/rain-3.png', duration: 1.7, opacity: 0.07, delay: -0.8, scale: 1.22 },
+  { src: 'assets/rain-1.webp', duration: 1.0, opacity: 0.14, delay: -0.2, scale: 1.08 },
+  { src: 'assets/rain-3.webp', duration: 1.7, opacity: 0.07, delay: -0.8, scale: 1.22 },
 ];
 
 /* ---------------- 实验交互（可独立开关，不影响已交付的开幕转场） ----------------
@@ -700,11 +700,11 @@ export const ACT2 = {
        *  tong-font-fast.gif 为原 GIF 的 0.65 倍速版（帧延迟 60ms→40ms，像素逐帧一致），
        *  想再调速度：python3 重新生成变体后同步改 tongSrc + tongSwapAtSec */
       tongSrc: 'assets/tong-font-fast.gif',
-      tongStill: 'assets/tong-font-still.png',
+      tongStill: 'assets/tong-font-still.webp',
       tongSwapAtSec: 3.2,
       /** 「惠」书写 GIF / 静帧 / swap 时机（秒，带循环：须在 4.1s 重启前换掉） */
       huiSrc: 'assets/hui-font.gif',
-      huiStill: 'assets/hui-font-still.png',
+      huiStill: 'assets/hui-font-still.webp',
       huiSwapAtSec: 4.05,
       /** 整体缩放（1 = 16:9 画布高 = 屏高，与船体同按屏高定尺寸，任何窗口比例下环抱构图不走样） */
       scale: 1,
@@ -774,14 +774,14 @@ export const ACT2 = {
       items: [
         { key: 'case-1', src: 'assets/prop-case-1.webp', delaySec: 0, riseDurSec: 1.3 }, // 与船同步升起
         { key: 'case-2', src: 'assets/prop-case-2.webp', delaySec: 1.0 },
-        { key: 'jar-1', src: 'assets/prop-jar-1.png', delaySec: 1.0 }, // 与展柜 2 同刻
-        { key: 'jar-2', src: 'assets/prop-jar-2.png', delaySec: 1.2 },
-        { key: 'jar-3', src: 'assets/prop-jar-3.png', delaySec: 1.4 },
-        { key: 'jar-4', src: 'assets/prop-jar-4.png', delaySec: 1.6 },
-        { key: 'jar-5', src: 'assets/prop-jar-5.png', delaySec: 1.8 },
-        { key: 'jar-6', src: 'assets/prop-jar-6.png', delaySec: 2.0 },
-        { key: 'jar-7', src: 'assets/prop-jar-7.png', delaySec: 2.2 },
-        { key: 'jar-8', src: 'assets/prop-jar-8.png', delaySec: 2.4 },
+        { key: 'jar-1', src: 'assets/prop-jar-1.webp', delaySec: 1.0 }, // 与展柜 2 同刻
+        { key: 'jar-2', src: 'assets/prop-jar-2.webp', delaySec: 1.2 },
+        { key: 'jar-3', src: 'assets/prop-jar-3.webp', delaySec: 1.4 },
+        { key: 'jar-4', src: 'assets/prop-jar-4.webp', delaySec: 1.6 },
+        { key: 'jar-5', src: 'assets/prop-jar-5.webp', delaySec: 1.8 },
+        { key: 'jar-6', src: 'assets/prop-jar-6.webp', delaySec: 2.0 },
+        { key: 'jar-7', src: 'assets/prop-jar-7.webp', delaySec: 2.2 },
+        { key: 'jar-8', src: 'assets/prop-jar-8.webp', delaySec: 2.4 },
       ],
       /** 浪花双段：与「通」同步起播（delaySec 与 fonts.tongDelaySec 同基准——
        *  相对「船定格瞬间」的秒数，不走 anchorSec 锚点）。

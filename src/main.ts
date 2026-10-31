@@ -63,7 +63,7 @@ function preloadList(): string[] {
     ...SEA_LAYERS.map((l) => l.src),
     ...SEA_CLOUDS.map((c) => c.src),
     ...SEA_RAIN.map((r) => r.src),
-    'assets/rope-knot.png',
+    'assets/rope-knot.webp',
     ASSETS.titleText,
     ...ASSETS.titleBgFrames,
     ASSETS.stamp,

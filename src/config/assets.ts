@@ -44,11 +44,11 @@ export const ASSETS = {
   clouds: ['assets/cloud-1.webp', 'assets/cloud-2.webp', 'assets/cloud-3.webp', 'assets/cloud-4.webp'],
 
   /** 雨幕三帧（对应素材：pics/雨1.png ~ 雨3.png） */
-  rains: ['assets/rain-1.png', 'assets/rain-2.png', 'assets/rain-3.png'],
+  rains: ['assets/rain-1.webp', 'assets/rain-2.webp', 'assets/rain-3.webp'],
 
   /** 船页标题文字（对应素材：pics/封面标题.png，1920×1080 透明背景，左侧竖排书法+印章）。
    *  与标题背景共用同一 1920×1080 画布，叠放时保持美工内部对位 */
-  titleText: 'assets/title-text.png',
+  titleText: 'assets/title-text.webp',
 
   /** 船页标题背景帧序列（对应素材：pics/标题背景图层/帧1.png ~ 帧7.png，
    *  1920×1080 透明背景，云雾翻滚的 7 个状态，播完定格末帧）。
@@ -72,8 +72,8 @@ export const ASSETS = {
   stamp: 'assets/stamp.webp',
 
   /** 第二幕预留：IP「通惠」（pics/通惠.png）与发光河道图（pics/河道.png） */
-  tonghui: 'assets/tonghui.png',
-  riverMap: 'assets/river-map.png',
+  tonghui: 'assets/tonghui.webp',
+  riverMap: 'assets/river-map.webp',
 
   /** 卷轴阅读页背景（3D-page-bg.png.jpg 转码为 3d-page-bg.webp，2848×1600 夜色运河全景，cover 铺满）。
    *  仅阅读态显示，与亮相页道具/浪花背景反向淡入淡出（见 act2Scene.fadeReadBackdrop） */
@@ -94,9 +94,9 @@ export const ASSETS = {
   /** 时间线导航页:三张背景(1920×1080,垂直堆叠拼接,河道大致连成一线)。
    *  顺序即时间顺序(从古到今):bg-1 灰暗 → bg-2 黄褐 → bg-3 青绿 */
   timelineBgs: [
-    'assets/timeline/timeline-bg-1.png',
-    'assets/timeline/timeline-bg-2.png',
-    'assets/timeline/timeline-bg-3.png',
+    'assets/timeline/timeline-bg-1.webp',
+    'assets/timeline/timeline-bg-2.webp',
+    'assets/timeline/timeline-bg-3.webp',
   ],
 
   /** 通惠 IP 形象(pics/通惠.png 转码,2048×1536 透明 WebP,2.0MB → 0.39MB):时间线页作为
@@ -141,7 +141,7 @@ export const ASSETS = {
 
   /** 时间线结点图标:发光灯柱(542×833 透明 PNG),底边落在结点坐标上、只向上生长,
    *  灯座周围保留地面光晕(见 timeline.css 的 .timeline-node::before / ::after) */
-  timelineNode: 'assets/dot-light.png',
+  timelineNode: 'assets/dot-light.webp',
 
   /** 时间线接缝遮罩云:复用海面场景的 cloud-1/3/4(半透明,横向宽,带 alpha 边缘),
    *  绝对定位在 bg1/bg2(y=1080)与 bg2/bg3(y=2160)接缝处,随内容滚动,全程遮盖拼缝。 */
@@ -154,48 +154,48 @@ export const ASSETS = {
   /** 时期详情页背景:每时期一张 1920×1080 整幅画布(timeline-page-x.png),
    *  卷轴页/文物触发页/文物详情页/勋章浮层共用;标题页统一用 homeBg。 */
   eraPages: [
-    'assets/timeline-detail/timeline-page-1.png',
-    'assets/timeline-detail/timeline-page-2.png',
-    'assets/timeline-detail/timeline-page-3.png',
+    'assets/timeline-detail/timeline-page-1.webp',
+    'assets/timeline-detail/timeline-page-2.webp',
+    'assets/timeline-detail/timeline-page-3.webp',
   ],
 
   /** 文物触发键:1920×1080 整幅透明画布,文物位置由美工预排(alpha 包围盒实测值见 eraData.ts)。
    *  详情页大图暂无正式素材,先用触发键 PNG 按 bbox 裁出放大占位。 */
   eraIcons: {
-    '1-1': 'assets/timeline-detail/timeline-icon-1-1.png',
-    '1-2': 'assets/timeline-detail/timeline-icon-1-2.png',
-    '2-1': 'assets/timeline-detail/timeline-icon-2-1.png',
-    '2-2': 'assets/timeline-detail/timeline-icon-2-2.png',
-    '2-3': 'assets/timeline-detail/timeline-icon-2-3.png',
-    '2-4': 'assets/timeline-detail/timeline-icon-2-4.png',
-    '2-5': 'assets/timeline-detail/timeline-icon-2-5.png',
-    '3-1': 'assets/timeline-detail/timeline-icon-3-1.png',
-    '3-2': 'assets/timeline-detail/timeline-icon-3-2.png',
-    '3-3': 'assets/timeline-detail/timeline-icon-3-3.png',
-    '3-4': 'assets/timeline-detail/timeline-icon-3-4.png',
+    '1-1': 'assets/timeline-detail/timeline-icon-1-1.webp',
+    '1-2': 'assets/timeline-detail/timeline-icon-1-2.webp',
+    '2-1': 'assets/timeline-detail/timeline-icon-2-1.webp',
+    '2-2': 'assets/timeline-detail/timeline-icon-2-2.webp',
+    '2-3': 'assets/timeline-detail/timeline-icon-2-3.webp',
+    '2-4': 'assets/timeline-detail/timeline-icon-2-4.webp',
+    '2-5': 'assets/timeline-detail/timeline-icon-2-5.webp',
+    '3-1': 'assets/timeline-detail/timeline-icon-3-1.webp',
+    '3-2': 'assets/timeline-detail/timeline-icon-3-2.webp',
+    '3-3': 'assets/timeline-detail/timeline-icon-3-3.webp',
+    '3-4': 'assets/timeline-detail/timeline-icon-3-4.webp',
   },
 
   /** 时期卷轴美术:纸/上轴/下轴三张 1920×1080 整幅透明 PNG,铺满同一画布即严格对位
    *  (卷轴2.png 为三者合成参考图,不使用)。 */
   eraScroll: {
-    paper: 'assets/timeline-detail/卷轴纸2.png',
-    rodTop: 'assets/timeline-detail/上轴2.png',
-    rodBottom: 'assets/timeline-detail/下轴2.png',
+    paper: 'assets/timeline-detail/卷轴纸2.webp',
+    rodTop: 'assets/timeline-detail/上轴2.webp',
+    rodBottom: 'assets/timeline-detail/下轴2.webp',
   },
 
   /** 详情页羊皮纸:1920×1080 整幅,作为时期详情页(有/无文物图)的文字面板背景 */
-  eraDetailParchment: 'assets/timeline-detail/羊皮纸.png',
+  eraDetailParchment: 'assets/timeline-detail/羊皮纸.webp',
 
   /** 第二时期文物正式详情图:2048×2048 正方形,整图即是文物(不再像触发键那样按 bbox 裁) */
   eraDetailImages: {
-    '2-1': 'assets/timeline-detail/timeline-detail-2-1.png',
-    '2-2': 'assets/timeline-detail/timeline-detail-2-2.png',
-    '2-3': 'assets/timeline-detail/timeline-detail-2-3.png',
-    '2-4': 'assets/timeline-detail/timeline-detail-2-4.png',
-    '2-5': 'assets/timeline-detail/timeline-detail-2-5.png',
-    '3-1': 'assets/timeline-detail/timeline-detail-3-1.png',
-    '3-2': 'assets/timeline-detail/timeline-detail-3-2.png',
-    '3-3': 'assets/timeline-detail/timeline-detail-3-3.png',
-    '3-4': 'assets/timeline-detail/timeline-detail-3-4.png',
+    '2-1': 'assets/timeline-detail/timeline-detail-2-1.webp',
+    '2-2': 'assets/timeline-detail/timeline-detail-2-2.webp',
+    '2-3': 'assets/timeline-detail/timeline-detail-2-3.webp',
+    '2-4': 'assets/timeline-detail/timeline-detail-2-4.webp',
+    '2-5': 'assets/timeline-detail/timeline-detail-2-5.webp',
+    '3-1': 'assets/timeline-detail/timeline-detail-3-1.webp',
+    '3-2': 'assets/timeline-detail/timeline-detail-3-2.webp',
+    '3-3': 'assets/timeline-detail/timeline-detail-3-3.webp',
+    '3-4': 'assets/timeline-detail/timeline-detail-3-4.webp',
   },
 } as const;
